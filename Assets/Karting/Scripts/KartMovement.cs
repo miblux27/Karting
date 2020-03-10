@@ -64,33 +64,36 @@ public class KartMovement : MonoBehaviour
         m_Handbrake = handbrake;
 
         ApplyDrive();
-        CalculateSidewaysFriction();
+        //CalculateSidewaysFriction();
 
         UpdateAirborne();
         ApplyJump();
 
-        ApplyBoost();
+        //ApplyBoost();
 
-        TurnHelper();
-        CapSpeed();
+        //TurnHelper();
+        //CapSpeed();
     }
 
     private void ApplyDrive()
     {
+        m_Rigidbody.AddForce(transform.forward * defaultStats.forwardSpeed * (m_Acceleration - m_Footbrake) * Time.fixedDeltaTime, ForceMode.VelocityChange);
+
         if (m_Grounded)
         {
-            m_Rigidbody.AddForce(transform.forward * defaultStats.forwardSpeed * (m_Acceleration - m_Footbrake) * Time.fixedDeltaTime, ForceMode.VelocityChange);
             if (m_Acceleration - m_Footbrake != 0f)
-                m_Rigidbody.AddTorque(transform.up * defaultStats.turnSpeed * m_Steering * Mathf.Sign(LocalSpeed), ForceMode.VelocityChange);
-        }
-        else
-        {
-            m_Rigidbody.AddTorque(transform.right * defaultStats.turnSpeed * m_Slope);
+            {
+                var capsuleAxis = m_Rigidbody.rotation * Vector3.forward * m_Capsule.height * 0.45f;
 
-            if (m_Handbrake)
-                m_Rigidbody.AddTorque(transform.forward * defaultStats.turnSpeed * -m_Steering); // can be ForceMode.VelocityChange
-            else
-                m_Rigidbody.AddTorque(transform.up * defaultStats.turnSpeed * m_Steering);
+                var frontPoint = m_Rigidbody.position + capsuleAxis;
+
+                m_Rigidbody.AddForceAtPosition(transform.right * defaultStats.turnSpeed * m_Steering * Mathf.Sign(LocalSpeed) * Time.fixedDeltaTime, frontPoint, ForceMode.VelocityChange);
+            }
+        }
+
+        else
+        {            
+            m_Rigidbody.AddTorque(transform.up * defaultStats.airborneTurnSpeed * m_Steering * Time.fixedDeltaTime, ForceMode.VelocityChange);            
         }
     }
 
@@ -120,7 +123,7 @@ public class KartMovement : MonoBehaviour
             {
                 m_Rigidbody.AddForce(transform.up * defaultStats.jumpForce, ForceMode.Impulse);
             }
-            else if (m_SecondJump && m_AirborneTime <= k_MaximumTimeSecondJump)
+            else if (m_SecondJump)
             {
                 var force = new Vector3(m_Steering, 0f, m_Slope);
 
@@ -129,7 +132,9 @@ public class KartMovement : MonoBehaviour
 
                 force.Normalize();
 
-                m_Rigidbody.AddRelativeForce(force * defaultStats.jumpForce, ForceMode.Impulse);
+                //m_Rigidbody.AddRelativeForce(force * defaultStats.jumpForce, ForceMode.Impulse);
+
+                m_Rigidbody.AddForce(transform.forward * defaultStats.jumpForce * 2f, ForceMode.Impulse);
 
                 m_SecondJump = false;
             }
@@ -140,7 +145,7 @@ public class KartMovement : MonoBehaviour
     {
         if (m_Boost)
         {
-            m_Rigidbody.AddForce(transform.forward * defaultStats.boostForce);
+            //m_Rigidbody.AddForce(transform.forward * defaultStats.boostForce);
         }
     }
 
@@ -177,9 +182,20 @@ public class KartMovement : MonoBehaviour
             m_Grounded = true;
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("entering by kart movement");
+
+        var force = 1000f;
+
+        var dir = other.transform.position - transform.position;
+        dir = dir.normalized;
+        other.attachedRigidbody.AddForce(dir * force);
+    }
+
     private void OnCollisionStay(Collision collision)
     {
-        if (!collision.collider.CompareTag("field"))
+        /*if (!collision.collider.CompareTag("field"))
             return;
 
         var normalAverage = Vector3.zero;
@@ -192,7 +208,7 @@ public class KartMovement : MonoBehaviour
         normalAverage /= contacts;
 
         var toRotation = Quaternion.LookRotation(transform.forward, normalAverage);
-        m_Rigidbody.rotation = Quaternion.RotateTowards(m_Rigidbody.rotation, toRotation, defaultStats.corretionSpeed * Time.fixedDeltaTime);
+        m_Rigidbody.rotation = Quaternion.RotateTowards(m_Rigidbody.rotation, toRotation, defaultStats.corretionSpeed * Time.fixedDeltaTime);*/
     }
 
     private void OnCollisionExit(Collision collision)

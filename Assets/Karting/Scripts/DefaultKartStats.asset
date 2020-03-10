@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: DefaultKartStats
   m_EditorClassIdentifier: 
   maxSpeed: 6
-  forwardSpeed: 12.5
-  turnSpeed: 2.5
+  forwardSpeed: 40
+  turnSpeed: 25
   corretionSpeed: 500
-  jumpForce: 200
-  boostForce: 750
+  jumpForce: 400
+  airborneTurnSpeed: 125
   turnHelperTorque: 25
   sidewaysFriction: 10

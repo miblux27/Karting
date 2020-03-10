@@ -18,7 +18,7 @@ using UnityEngine;
     [Tooltip("The magnitude of the jump.")]
     public float jumpForce = 200f;
     [Tooltip("The amount of force applied when boosting.  Capped by maximum speed.")]
-    public float boostForce = 750f;
+    public float airborneTurnSpeed = 750f;
     [Tooltip("The amount of torque applied to smooth movement in curved areas.")]
     public float turnHelperTorque = 25f;
     [Tooltip("The amount of friction so that the kart doesn't slide.")]
