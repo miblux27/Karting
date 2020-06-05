@@ -12,11 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96df3bbc999255145beb963a77e47022, type: 3}
   m_Name: DefaultKartStats
   m_EditorClassIdentifier: 
-  maxSpeed: 6
-  forwardSpeed: 40
+  forwardSpeed: 80
   turnSpeed: 25
-  corretionSpeed: 500
-  jumpForce: 400
+  jumpForce: 500
   airborneTurnSpeed: 125
-  turnHelperTorque: 25
-  sidewaysFriction: 10

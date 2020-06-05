@@ -3,7 +3,18 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - field
+  - ball
+  - purpleAgent
+  - blueAgent
+  - blueGoal
+  - purpleGoal
+  - wall
+  - blueAgent2
+  - purpleAgent2
+  - blueAgent3
+  - purpleAgent3
   layers:
   - Default
   - TransparentFX

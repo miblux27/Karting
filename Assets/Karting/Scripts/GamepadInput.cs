@@ -19,6 +19,6 @@ public class GamepadInput : MonoBehaviour
         bool boost = Input.GetButton("Boost");
         bool handbrake = Input.GetButton("Handbrake");
 
-        kart.Move(h, v, rt, lt, jump, boost, handbrake);
+        kart.Move(h, rt, lt, jump);
     }
 }

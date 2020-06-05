@@ -12,67 +12,63 @@ public class KartMovement : MonoBehaviour
 
     private Rigidbody m_Rigidbody;
 
-    private SphereCollider m_Sphere;
     private CapsuleCollider m_Capsule;
-
-    private Collider[] m_ColliderBuffer = new Collider[8];
-
-    private RaycastHit[] m_RaycastHitBuffer = new RaycastHit[8];
-
-    private ContactPoint[] m_ContactPointBuffer = new ContactPoint[16];
 
     private bool m_Grounded = true;
     private bool m_SecondJump = true;
-    private bool m_HasControl = true;
-
-    private float m_AirborneTime;
-
-    private Vector3 m_Velocity;
 
     private float m_Steering;
-    private float m_Slope;
     private float m_Acceleration;
     private float m_Footbrake;
     private bool m_Jump;
-    private bool m_Boost;
-    private bool m_Handbrake;
 
-    private const float k_MaximumTimeSecondJump = 2f;
+    private const float k_maxHeight = 1f;
 
     // Required by KartAnimation script
     public float Steering => m_Steering;
     public float LocalSpeed => (Quaternion.Inverse(m_Rigidbody.rotation) * m_Rigidbody.velocity).z;
     public bool IsGrounded => m_Grounded;
+    public bool HasSecondJump => m_SecondJump;
 
     private void Awake()
     {
         m_Rigidbody = GetComponent<Rigidbody>();
         m_Capsule = GetComponent<CapsuleCollider>();
-        m_Sphere = GetComponent<SphereCollider>();
     }
 
-    public void Move(float steering, float slope, float accel, float footbrake, bool jump, bool boost, bool handbrake)
+    public void Move(float steering, float accel, float footbrake, bool jump)
     {
-        if (!m_HasControl) return;
-
         m_Steering = Mathf.Clamp(steering, -1f, 1f);
-        m_Slope = Mathf.Clamp(slope, -1f, 1f);
         m_Acceleration = Mathf.Clamp(accel, 0f, 1f);
         m_Footbrake = Mathf.Clamp(footbrake, 0f, 1f);
         m_Jump = jump;
-        m_Boost = boost;
-        m_Handbrake = handbrake;
+
+        CheckGrounded();
 
         ApplyDrive();
-        //CalculateSidewaysFriction();
 
-        UpdateAirborne();
         ApplyJump();
 
-        //ApplyBoost();
+        //CapHeight();
+    }
 
-        //TurnHelper();
-        //CapSpeed();
+    public void Reset()
+    {
+        m_Grounded = true;
+        m_SecondJump = true;
+    }
+
+    private void CheckGrounded()
+    {
+        if (!m_Grounded)
+        {
+            m_Rigidbody.AddForce(3f * transform.up * Physics.gravity.y, ForceMode.Acceleration);
+        }
+
+        if (m_Grounded && !m_SecondJump)
+        {
+            m_SecondJump = true;
+        }
     }
 
     private void ApplyDrive()
@@ -92,27 +88,11 @@ public class KartMovement : MonoBehaviour
         }
 
         else
-        {            
-            m_Rigidbody.AddTorque(transform.up * defaultStats.airborneTurnSpeed * m_Steering * Time.fixedDeltaTime, ForceMode.VelocityChange);            
-        }
-    }
-
-    private void CalculateSidewaysFriction()
-    {
-        Vector3 localVelocity = Quaternion.Inverse(m_Rigidbody.rotation) * m_Rigidbody.velocity;
-        localVelocity.x = Mathf.MoveTowards(localVelocity.x, 0f, defaultStats.sidewaysFriction * Time.fixedDeltaTime);
-        m_Rigidbody.velocity = m_Rigidbody.rotation * localVelocity;
-    }
-
-    private void UpdateAirborne()
-    {
-        if (m_Grounded)
         {
-            m_SecondJump = true;
-            m_AirborneTime = 0f;
-        }  
-        else
-            m_AirborneTime += Time.fixedDeltaTime;
+            float localSpeedHelper = LocalSpeed;
+            if (Mathf.Abs(localSpeedHelper) < 0.01f) localSpeedHelper = 0f;
+            m_Rigidbody.AddTorque(transform.up * defaultStats.airborneTurnSpeed * m_Steering * Mathf.Sign(localSpeedHelper) * Time.fixedDeltaTime, ForceMode.VelocityChange);            
+        }
     }
 
     private void ApplyJump()
@@ -122,57 +102,22 @@ public class KartMovement : MonoBehaviour
             if (m_Grounded)
             {
                 m_Rigidbody.AddForce(transform.up * defaultStats.jumpForce, ForceMode.Impulse);
+                m_Grounded = false;
             }
             else if (m_SecondJump)
             {
-                var force = new Vector3(m_Steering, 0f, m_Slope);
-
-                if (force.x == 0f && force.z == 0f) force.y = -Physics.gravity.y;
-                else force.y = 0.25f;
-
-                force.Normalize();
-
-                //m_Rigidbody.AddRelativeForce(force * defaultStats.jumpForce, ForceMode.Impulse);
-
-                m_Rigidbody.AddForce(transform.forward * defaultStats.jumpForce * 2f, ForceMode.Impulse);
-
+                m_Rigidbody.AddForce(transform.forward * defaultStats.jumpForce, ForceMode.Impulse);
                 m_SecondJump = false;
             }
         }
     }
 
-    private void ApplyBoost()
+    private void CapHeight()
     {
-        if (m_Boost)
-        {
-            //m_Rigidbody.AddForce(transform.forward * defaultStats.boostForce);
-        }
-    }
-
-    private void CapSpeed()
-    {
-        if (m_Rigidbody.velocity.magnitude > defaultStats.maxSpeed)
-            m_Rigidbody.velocity = m_Rigidbody.velocity.normalized * defaultStats.maxSpeed;
-    }
-
-    private void TurnHelper()
-    {
-        var capsuleAxis = m_Rigidbody.rotation * Vector3.forward * m_Capsule.height * 0.5f;
-
-        var frontPoint = m_Rigidbody.position + capsuleAxis;
-
-        var rearPoint = m_Rigidbody.position - capsuleAxis;
-
-        if (Physics.OverlapSphereNonAlloc(frontPoint, 0.05f, m_ColliderBuffer, groundLayers, QueryTriggerInteraction.Ignore) > 0f
-            || Physics.OverlapSphereNonAlloc(rearPoint, 0.05f, m_ColliderBuffer, groundLayers, QueryTriggerInteraction.Ignore) > 0f)
-        {
-            if (m_Acceleration  > 0.5f || m_Footbrake > 0.5f && Mathf.Abs(Vector3.Dot(transform.up, Vector3.up)) > 0.5f)
-            {
-                if (LocalSpeed > 0f)
-                    m_Rigidbody.AddTorque(-transform.right * defaultStats.turnHelperTorque, ForceMode.Impulse);
-                else
-                    m_Rigidbody.AddTorque(transform.right * defaultStats.turnHelperTorque, ForceMode.Impulse);
-            }
+        if (m_Rigidbody.position.y >= k_maxHeight) {
+            Vector3 velocityHelper = m_Rigidbody.velocity;
+            velocityHelper.y = 0f;
+            m_Rigidbody.velocity = velocityHelper;
         }
     }
 
@@ -180,40 +125,5 @@ public class KartMovement : MonoBehaviour
     {
         if (collision.collider.CompareTag("field"))
             m_Grounded = true;
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        Debug.Log("entering by kart movement");
-
-        var force = 1000f;
-
-        var dir = other.transform.position - transform.position;
-        dir = dir.normalized;
-        other.attachedRigidbody.AddForce(dir * force);
-    }
-
-    private void OnCollisionStay(Collision collision)
-    {
-        /*if (!collision.collider.CompareTag("field"))
-            return;
-
-        var normalAverage = Vector3.zero;
-
-        int contacts = collision.GetContacts(m_ContactPointBuffer);
-        for (int i = 0; i < contacts; i++)
-        {
-            normalAverage += m_ContactPointBuffer[i].normal;
-        }
-        normalAverage /= contacts;
-
-        var toRotation = Quaternion.LookRotation(transform.forward, normalAverage);
-        m_Rigidbody.rotation = Quaternion.RotateTowards(m_Rigidbody.rotation, toRotation, defaultStats.corretionSpeed * Time.fixedDeltaTime);*/
-    }
-
-    private void OnCollisionExit(Collision collision)
-    {
-        if (collision.collider.CompareTag("field"))
-            m_Grounded = false;
     }
 }

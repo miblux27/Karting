@@ -27,6 +27,7 @@ public class AgentSoccer : Agent
     public Rigidbody agentRb;
     SoccerSettings m_SoccerSettings;
     BehaviorParameters m_BehaviorParameters;
+    DecisionRequester m_DecisionRequester;
     KartMovement m_KartMovement;
     Vector3 m_Transform;
 
@@ -34,6 +35,7 @@ public class AgentSoccer : Agent
     {
         base.InitializeAgent();
         m_BehaviorParameters = gameObject.GetComponent<BehaviorParameters>();
+        m_DecisionRequester = gameObject.GetComponent<DecisionRequester>();
         m_KartMovement = gameObject.GetComponent<KartMovement>();
         m_Transform = transform.position;
 
@@ -61,7 +63,7 @@ public class AgentSoccer : Agent
         playerState.playerIndex = m_PlayerIndex;
     }
 
-    public void MoveAgent(float[] act)
+    /*public void MoveAgent(float[] act)
     {
         var dirToGo = Vector3.zero;
         var rotateDir = Vector3.zero;
@@ -106,14 +108,64 @@ public class AgentSoccer : Agent
         transform.Rotate(rotateDir, Time.deltaTime * 100f);
         agentRb.AddForce(dirToGo * m_SoccerSettings.agentRunSpeed,
             ForceMode.VelocityChange);
+    }*/
+
+    public void MoveKart(float[] act)
+    {
+        var steering = 0f;
+        var accel = 0f;
+        var footbrake = 0f;
+
+        var forwardAxis = (int)act[0];
+        var rightAxis = (int)act[1];
+        var jump = (int)act[2];
+
+        switch (forwardAxis)
+        {
+            case 1:
+                accel = 1f;
+                break;
+            case 2:
+                footbrake = 1f;
+                break;
+        }
+
+        switch (rightAxis)
+        {
+            case 1:
+                steering = 1f;
+                break;
+            case 2:
+                steering = -1f;
+                break;
+        }
+
+        m_KartMovement.Move(steering, accel, footbrake, jump == 1);
+    }
+
+    public override void CollectObservations()
+    {
+        AddVectorObs(m_KartMovement.IsGrounded);
+        if (!m_KartMovement.HasSecondJump)
+            SetActionMask(2, 1);
     }
 
     public override void AgentAction(float[] vectorAction)
     {
         // Existential penalty for strikers.
         AddReward(-1f / 3000f);
-        //MoveAgent(vectorAction);
-        m_KartMovement.Move(vectorAction[0], 0f, vectorAction[1], vectorAction[2], vectorAction[3] >= 0.5f, false, false);
+        // MoveAgent(vectorAction);
+        MoveKart(vectorAction);
+        // Tweak the decision period depending on whether the kart is in the air or not
+        // AdjustDecisionConfidence();
+    }
+
+    public void AdjustDecisionConfidence()
+    {
+        if (!m_KartMovement.IsGrounded)
+            m_DecisionRequester.DecisionPeriod = 1;
+        else
+            m_DecisionRequester.DecisionPeriod = 5;
     }
 
     public override float[] Heuristic()
@@ -128,23 +180,19 @@ public class AgentSoccer : Agent
         {
             action[0] = 2f;
         }
-        //rotate
-        if (Input.GetKey(KeyCode.A))
-        {
-            action[2] = 1f;
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            action[2] = 2f;
-        }
         //right
-        if (Input.GetKey(KeyCode.E))
+        if (Input.GetKey(KeyCode.D))
         {
             action[1] = 1f;
         }
-        if (Input.GetKey(KeyCode.Q))
+        if (Input.GetKey(KeyCode.A))
         {
             action[1] = 2f;
+        }
+        //jump
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            action[2] = 1f;
         }
         return action;
     }
@@ -154,11 +202,10 @@ public class AgentSoccer : Agent
     /// </summary>
     void OnCollisionEnter(Collision c)
     {
+        m_KickPower = m_KartMovement.LocalSpeed > 0f ? 1f : 0f;
         if (c.gameObject.CompareTag("ball") && !m_KartMovement.IsGrounded)
         {
-            m_KickPower = m_KartMovement.LocalSpeed > 0f ? 1f : 0f;
             var force = 2000f * m_KickPower;
-
             var dir = c.GetContact(0).point - transform.position;
             dir = dir.normalized;
             c.gameObject.GetComponent<Rigidbody>().AddForce(dir * force);
@@ -178,6 +225,7 @@ public class AgentSoccer : Agent
         transform.position = m_Transform;
         agentRb.velocity = Vector3.zero;
         agentRb.angularVelocity = Vector3.zero;
+        m_KartMovement.Reset();
         SetResetParameters();
     }
 

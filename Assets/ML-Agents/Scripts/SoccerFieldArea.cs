@@ -73,6 +73,7 @@ public class SoccerFieldArea : MonoBehaviour
     {
         var randomSpawnPos = ground.transform.position +
             new Vector3(0f, 0f, 0f);
+        randomSpawnPos.x = ground.transform.position.x + Academy.Instance.FloatProperties.GetPropertyWithDefault("ball_delta", 0.0f);
         randomSpawnPos.y = ground.transform.position.y + .5f;
         return randomSpawnPos;
     }
